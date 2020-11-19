@@ -8,5 +8,5 @@ require (
 	github.com/nats-io/nats.go v1.10.0 // indirect
 	github.com/pion/rtcp v1.2.4
 	github.com/pion/webrtc/v2 v2.2.26 // indirect
-	github.com/pion/webrtc/v3 v3.0.0-beta.12
+	github.com/pion/webrtc/v3 v3.0.0-beta.12.0.20201119060521-74e790aa115d
 )

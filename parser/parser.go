@@ -19,5 +19,8 @@ func ParseMessage(conn *websocket.Conn, msg []byte){
 
     case "INIT":
         action.Init(conn, reqBody)
+
+    case "CLIENT_ANSWER":
+        action.RespondToClientAnswer(reqBody)
     }
 }

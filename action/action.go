@@ -53,27 +53,19 @@ func Init(conn *websocket.Conn, reqBody constant.RequestBody){
         log.Println("[ACTION - INIT] - SIGNAL STATE ---> ", sigState)
     })
 
-    // Allow us to receive 1 video track
-    if _, err = peerConnection.AddTransceiver(webrtc.RTPCodecTypeVideo); err != nil {
-        log.Fatalln(err)
-    }
-    // Allow us to receive 1 audio track
-    if _, err = peerConnection.AddTransceiver(webrtc.RTPCodecTypeAudio); err != nil {
-        log.Fatalln(err)
-    }
-
     me := router.AddClientToRoom(room, userID, conn, peerConnection)
     me.Activate()
 
-    peerConnection.OnTrack(func(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
+    peerConnection.OnTrack(func(remoteTrack *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
         go func() {
-            ticker := time.NewTicker(rtcpPLIInterval)
-            for range ticker.C {
-                if rtcpSendErr := peerConnection.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: remoteTrack.SSRC()}}); rtcpSendErr != nil {
-                    log.Println(rtcpSendErr)
-                }
-            }
-        }()
+			ticker := time.NewTicker(time.Second * 3)
+			for range ticker.C {
+				errSend := peerConnection.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(remoteTrack.SSRC())}})
+				if errSend != nil {
+					fmt.Println(errSend)
+				}
+			}
+		}()
 
         if remoteTrack.Kind() == webrtc.RTPCodecTypeAudio{
             me.SetAudioTrack(remoteTrack)
@@ -109,11 +101,11 @@ func Init(conn *websocket.Conn, reqBody constant.RequestBody){
     conn.WriteMessage(websocket.TextMessage, ans)
 
     //Loop over other clients in the room and consume tracks
-    fmt.Println("ROOM LENGHT", len(me.Room.Clients))
+    log.Println("[ACTION - INIT] - ROOM LENGTH", len(me.Room.Clients))
+    time.Sleep(3 * time.Second) 
     if len(me.Room.Clients) > 1{
     	for he, status := range me.Room.Clients {
 			if status {
-				fmt.Println(he.UserID, "*********************")
 				if he.UserID != me.UserID{
 
 		            //Send SDP Answer
@@ -125,7 +117,7 @@ func Init(conn *websocket.Conn, reqBody constant.RequestBody){
 				}else{
 					//Send SDP Answer
 		            reqBody := constant.RequestBody{}
-		            reqBody.Action = "RenegotiateDueToSelfJoin"
+		            reqBody.Action = "RENEGOTIATE_SELF_CLIENT"
 		            reqBody.UserID = me.UserID
 		            me.Sensor <- reqBody
 				}
@@ -135,6 +127,29 @@ func Init(conn *websocket.Conn, reqBody constant.RequestBody){
 	
 
 
+}
+
+func RespondToClientAnswer(reqBody constant.RequestBody){
+	fmt.Println("***************************************************(   RESPOND TO CLIENT ANSWER    )*************************************")
+
+	userID := reqBody.UserID
+	answer := reqBody.SDP
+	for client, status := range room.Clients {
+        if status {
+            //skip my tracks
+            if client.UserID == userID{
+
+                // Sets the LocalDescription, and starts our UDP listeners
+                err := client.PC.SetRemoteDescription(answer)
+                if err != nil {
+                    log.Fatalln(err)
+                }
+
+                break;
+
+            }
+        }
+    }
 }
 
 
