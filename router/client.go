@@ -1,98 +1,214 @@
 package router
 
 import (
-	"io"
 	"log"
-	"github.com/gorilla/websocket"
+	"fmt"
+	"time"
+	"reflect"
+	"encoding/json"
 	"github.com/pion/webrtc/v3"
+	"github.com/gorilla/websocket"
+	"github.com/voskos/voskos-rtc-sfu/constant"
 )
 
 type Client struct {
 	Room *Room
 	UserID string
-	// The websocket connection.
 	Conn *websocket.Conn
 	PC  *webrtc.PeerConnection
-	Audio *webrtc.Track
-	Video *webrtc.Track
+	Audio *webrtc.TrackRemote
+	Video *webrtc.TrackRemote
+	Sensor chan constant.RequestBody
+
 
 }
 
-
 func AddClientToRoom(room *Room, user_id string, conn *websocket.Conn, pc *webrtc.PeerConnection) *Client{
-	log.Println("Added a client to the room")
-	client := &Client{Room:  room, UserID : user_id, Conn : conn, PC : pc}
-	log.Println("Registering the client to the room")
+	log.Println("[CLIENT] - Added a client to the room")
+	client := &Client{
+				Room:  room, 
+				UserID : user_id, 
+				Conn : conn, 
+				PC : pc, 
+				Sensor : make(chan constant.RequestBody),
+			}
+	log.Println("[CLIENT] - Registering the client to the room")
 	client.Room.Register <- client
 	return client
 }
 
-func (c *Client) SetAudioTrack(t *webrtc.Track){
+func writeRTPToTrack(outputTrack *webrtc.TrackLocalStaticRTP, track *webrtc.TrackRemote){
+	for {
+			// Read RTP packets being sent to Pion
+			rtp, readErr := track.ReadRTP()
+			if readErr != nil {
+				panic(readErr)
+			}
+
+			if writeErr := outputTrack.WriteRTP(rtp); writeErr != nil {
+				panic(writeErr)
+			}
+		}
+}
+
+func (self *Client) RenegotiateDueToNewClientJoin(reqBody constant.RequestBody){
+	fmt.Println("***************************************************(   RENEGOTIATE - OTHER   )*************************************")
+    newJoineeID := reqBody.UserID
+    //Loop over other clients in the room and consume tracks
+    for client, status := range self.Room.Clients {
+        if status {
+            //skip my tracks
+            if client.UserID == newJoineeID{
+
+            	outputTrackVideo, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: "video/vp8"}, "video", "pion")
+				if err != nil {
+					panic(err)
+				}
+
+				// Add this newly created track to the PeerConnection
+				if _, err = self.PC.AddTrack(outputTrackVideo); err != nil {
+					log.Println("[CLIENT] - Error in adding video output track ", client.UserID)
+					panic(err)
+				}
+
+				outputTrackAudio, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: "audio/opus"}, "audio", "pion")
+				if err != nil {
+					panic(err)
+				}
+
+				// Add this newly created track to the PeerConnection
+				if _, err = self.PC.AddTrack(outputTrackAudio); err != nil {
+					log.Println("[CLIENT] - Error in adding output audio track ", client.UserID)
+					panic(err)
+				}
+
+				go writeRTPToTrack(outputTrackVideo, client.Video)
+				go writeRTPToTrack(outputTrackAudio, client.Audio)
+
+                break;
+
+            }
+
+
+        }
+    }
+
+    time.Sleep(3 * time.Second) 
+    //inititae renegotiation
+    // Create offer
+    offer, err := self.PC.CreateOffer(nil)
+    if err != nil {
+        log.Fatalln(err)
+    }
+
+    // Sets the LocalDescription, and starts our UDP listeners
+    err = self.PC.SetLocalDescription(offer)
+    if err != nil {
+        log.Fatalln(err)
+    }
+
+    //Send SDP Answer
+    respBody := constant.SDPResponse{}
+    respBody.Action = "SERVER_OFFER"
+    respBody.SDP = offer
+    off, _ := json.Marshal(respBody)
+    log.Println("[SENSOR] - SDP Offer Sent")
+    self.Conn.WriteMessage(websocket.TextMessage, off)
+    time.Sleep(3 * time.Second)
+
+}
+
+func (my *Client) RenegotiateDueToSelfJoin(reqBody constant.RequestBody){
+	fmt.Println("***************************************************(   RENEGOTIATE - SELF  )*************************************")
+    my_id := reqBody.UserID
+    //Loop over other clients in the room and consume tracks
+    for his, status := range my.Room.Clients {
+        if status {
+            //skip my tracks
+            if his.UserID != my_id{
+
+            	// Create Track that we send video back to browser on
+            	log.Println("[TYPE OF TRACK] - ", reflect.TypeOf(his.Audio))
+				outputTrackVideo, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: "video/vp8"}, "video", "pion")
+				if err != nil {
+					panic(err)
+				}
+
+				// Add this newly created track to the PeerConnection
+				if _, err = my.PC.AddTrack(outputTrackVideo); err != nil {
+					log.Println("[CLIENT] - Error in adding output track", his.UserID)
+					panic(err)
+				}
+
+				outputTrackAudio, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: "audio/opus"}, "audio", "pion")
+				if err != nil {
+					panic(err)
+				}
+
+				// Add this newly created track to the PeerConnection
+				if _, err = my.PC.AddTrack(outputTrackAudio); err != nil {
+					log.Println("[CLIENT] - Error in adding output audio track ", his.UserID)
+					panic(err)
+				}
+
+				go writeRTPToTrack(outputTrackVideo, his.Video)
+				go writeRTPToTrack(outputTrackAudio, his.Audio)
+
+            }
+        }
+    } 
+    //inititae renegotiation
+    // Create offer
+    time.Sleep(3 * time.Second)
+    offer, err := my.PC.CreateOffer(nil)
+    if err != nil {
+        log.Fatalln(err)
+    }
+
+    // Sets the LocalDescription, and starts our UDP listeners
+    err = my.PC.SetLocalDescription(offer)
+    if err != nil {
+        log.Fatalln(err)
+    }
+
+    //Send SDP Answer
+    respBody := constant.SDPResponse{}
+    respBody.Action = "SERVER_OFFER"
+    respBody.SDP = offer
+    off, _ := json.Marshal(respBody)
+    log.Println("[SENSOR] - SDP Offer Sent")
+    my.Conn.WriteMessage(websocket.TextMessage, off)
+
+}
+
+func (c *Client) Activate() {
+	log.Println("[CLIENT] - Client Activated")
+	go func() {
+		for {
+			select {
+			case reqBody := <-c.Sensor:
+			    action_type := reqBody.Action
+			    log.Println("[CLIENT] - Message recieved with action : ", action_type)
+
+			    switch action_type {
+
+				    case "RENEGOTIATE_EXIST_CLIENT":
+				        c.RenegotiateDueToNewClientJoin(reqBody)
+
+			     	case "RENEGOTIATE_SELF_CLIENT":
+				        c.RenegotiateDueToSelfJoin(reqBody)
+			    }
+			}
+		}
+	}()
+}
+
+func (c *Client) SetAudioTrack(t *webrtc.TrackRemote){
 	c.Audio = t
-	log.Printf("Audio track for USER = %s set with TRACK_ID = %s", c.UserID, c.Audio.ID())
+	log.Printf("[CLIENT] - Audio track for USER = %s saved with TRACK_ID = %s", c.UserID, c.Audio.ID())
 }
 
-func (c *Client) SetVideoTrack(t *webrtc.Track){
+func (c *Client) SetVideoTrack(t *webrtc.TrackRemote){
 	c.Video = t
-	log.Printf("Video track for USER = %s set with TRACK_ID = %s", c.UserID, c.Video.ID())
-}
-
-func (c *Client) ConsumeAudioTracks(pc *webrtc.PeerConnection){
-	//Loop over other clients in the room and consume tracks
-	for client, status := range c.Room.Clients {
-		if status {
-			//skip my tracks
-			if client.UserID != c.UserID{
-
-				// Create a local track, all our SFU clients will be fed via this track
-				localTrack, newTrackErr := pc.NewTrack(client.Audio.PayloadType(), client.Audio.SSRC(), "audio", client.UserID)
-				if newTrackErr != nil {
-					log.Println("Error in consuming audio track of ", client.UserID)
-				}
-
-				rtpBuf := make([]byte, 1400)
-				for {
-					i, readErr := client.Audio.Read(rtpBuf)
-					if readErr != nil {
-						log.Fatalln(readErr)
-					}
-
-					// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
-					if _, err := localTrack.Write(rtpBuf[:i]); err != nil && err != io.ErrClosedPipe {
-						log.Fatalln(err)
-					}
-				}
-			}
-		}
-	}
-}
-
-func (c *Client) ConsumeVideoTracks(pc *webrtc.PeerConnection){
-	//Loop over other clients in the room and consume tracks
-	for client, status := range c.Room.Clients {
-		if status {
-			//skip my tracks
-			if client.UserID != c.UserID{
-
-				// Create a local track, all our SFU clients will be fed via this track
-				localTrack, newTrackErr := pc.NewTrack(client.Video.PayloadType(), client.Video.SSRC(), "video", client.UserID)
-				if newTrackErr != nil {
-					log.Println("Error in consuming video track of ", client.UserID)
-				}
-
-				rtpBuf := make([]byte, 1400)
-				for {
-					i, readErr := client.Video.Read(rtpBuf)
-					if readErr != nil {
-						log.Fatalln(readErr)
-					}
-
-					// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
-					if _, err := localTrack.Write(rtpBuf[:i]); err != nil && err != io.ErrClosedPipe {
-						log.Fatalln(err)
-					}
-				}
-			}
-		}
-	}
+	log.Printf("[CLIENT] - Video track for USER = %s saved with TRACK_ID = %s", c.UserID, c.Video.ID())
 }

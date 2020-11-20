@@ -2,13 +2,10 @@ package main
 
 import (
 	"log"
-    "github.com/voskos/voskos-rtc-sfu/signal"
-    "github.com/voskos/voskos-rtc-sfu/router"
+    "github.com/voskos/voskos-rtc-sfu/server"
 )
 
 func main() {
-	room := router.NewRoom()
-	go room.Run()
-	log.Println("New room created")
-    signal.CreteWebsocketSDPServer(room)
+	log.Println("[MAIN] - Server Initiated")
+    server.CreteWebsocketServer()
 }

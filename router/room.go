@@ -26,7 +26,7 @@ func (r *Room) Run() {
 	for {
 		select {
 		case client := <-r.Register:
-			log.Println("USER REGISTERED ->>>>>", client.UserID)
+			log.Printf("[ROOM] - User %s registered in room", client.UserID)
 			r.Clients[client] = true
 		case client := <-r.Unregister:
 			if _, ok := r.Clients[client]; ok {
