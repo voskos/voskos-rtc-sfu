@@ -102,7 +102,7 @@ func Init(conn *websocket.Conn, reqBody constant.RequestBody){
 
     //Loop over other clients in the room and consume tracks
     log.Println("[ACTION - INIT] - ROOM LENGTH", len(me.Room.Clients))
-    time.Sleep(3 * time.Second) 
+    for me.AudioLock || me.VideoLock {} 
     if len(me.Room.Clients) > 1{
     	for he, status := range me.Room.Clients {
 			if status {
@@ -136,10 +136,9 @@ func RespondToClientAnswer(reqBody constant.RequestBody){
 	answer := reqBody.SDP
 	for client, status := range room.Clients {
         if status {
-            //skip my tracks
             if client.UserID == userID{
 
-                // Sets the LocalDescription, and starts our UDP listeners
+                // Sets the RemoteDescription
                 err := client.PC.SetRemoteDescription(answer)
                 if err != nil {
                     log.Fatalln(err)

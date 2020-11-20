@@ -3,7 +3,7 @@ package router
 import (
 	"log"
 	"fmt"
-	"time"
+	// "time"
 	"reflect"
 	"encoding/json"
 	"github.com/pion/webrtc/v3"
@@ -19,6 +19,8 @@ type Client struct {
 	Audio *webrtc.TrackRemote
 	Video *webrtc.TrackRemote
 	Sensor chan constant.RequestBody
+	AudioLock bool
+	VideoLock bool
 
 
 }
@@ -31,6 +33,8 @@ func AddClientToRoom(room *Room, user_id string, conn *websocket.Conn, pc *webrt
 				Conn : conn, 
 				PC : pc, 
 				Sensor : make(chan constant.RequestBody),
+				AudioLock : true,
+				VideoLock : true,
 			}
 	log.Println("[CLIENT] - Registering the client to the room")
 	client.Room.Register <- client
@@ -93,7 +97,7 @@ func (self *Client) RenegotiateDueToNewClientJoin(reqBody constant.RequestBody){
         }
     }
 
-    time.Sleep(3 * time.Second) 
+    //time.Sleep(3 * time.Second) 
     //inititae renegotiation
     // Create offer
     offer, err := self.PC.CreateOffer(nil)
@@ -114,7 +118,6 @@ func (self *Client) RenegotiateDueToNewClientJoin(reqBody constant.RequestBody){
     off, _ := json.Marshal(respBody)
     log.Println("[SENSOR] - SDP Offer Sent")
     self.Conn.WriteMessage(websocket.TextMessage, off)
-    time.Sleep(3 * time.Second)
 
 }
 
@@ -159,7 +162,7 @@ func (my *Client) RenegotiateDueToSelfJoin(reqBody constant.RequestBody){
     } 
     //inititae renegotiation
     // Create offer
-    time.Sleep(3 * time.Second)
+    //time.Sleep(3 * time.Second)
     offer, err := my.PC.CreateOffer(nil)
     if err != nil {
         log.Fatalln(err)
@@ -205,10 +208,12 @@ func (c *Client) Activate() {
 
 func (c *Client) SetAudioTrack(t *webrtc.TrackRemote){
 	c.Audio = t
+	c.AudioLock = false
 	log.Printf("[CLIENT] - Audio track for USER = %s saved with TRACK_ID = %s", c.UserID, c.Audio.ID())
 }
 
 func (c *Client) SetVideoTrack(t *webrtc.TrackRemote){
 	c.Video = t
+	c.VideoLock = false
 	log.Printf("[CLIENT] - Video track for USER = %s saved with TRACK_ID = %s", c.UserID, c.Video.ID())
 }
