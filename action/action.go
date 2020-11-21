@@ -43,7 +43,11 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
     if !roomExists{
         myRoom = router.NewRoom(rtr, roomID)
         go myRoom.Run()
-    }   
+    }  
+
+    myRoom.Lock.Lock() 
+    // Lock locks m. If the lock is already in use, the calling goroutine blocks until the mutex is available. 
+    defer myRoom.Lock.Unlock()
 
 	//create a peerconnection object
 	peerConnectionConfig := webrtc.Configuration{
@@ -60,12 +64,23 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
         log.Fatalln(err)
     }
 
+    me := router.AddClientToRoom(myRoom, userID, conn, peerConnection)
+    me.Activate()
+
     peerConnection.OnSignalingStateChange(func(sigState webrtc.SignalingState){
         log.Println("[ACTION - INIT] - SIGNAL STATE ---> ", sigState)
     })
 
-    me := router.AddClientToRoom(myRoom, userID, conn, peerConnection)
-    me.Activate()
+    // peerConnection.OnICECandidate(func(candidate *webrtc.ICECandidate){
+    //     log.Println("[ACTION - INIT] - NEW ICE CANDIDATE DISCOVERED ---> ", candidate)
+    //     //Send SDP Answer
+    //     reqBody := constant.ICEResponse{}
+    //     reqBody.Action = "NEW_ICE_CANDIDATE_SERVER"
+    //     reqBody.ICE_Candidate = candidate
+    //     cand, _ := json.Marshal(reqBody)
+    //     log.Println("[ACTION - INIT] - ICE Candidate Sent")
+    //     conn.WriteMessage(websocket.TextMessage, cand)
+    // })
 
     peerConnection.OnTrack(func(remoteTrack *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
         go func() {
@@ -164,6 +179,43 @@ func RespondToClientAnswer(rtr *router.Router, reqBody constant.RequestBody){
 
                 // Sets the RemoteDescription
                 err := client.PC.SetRemoteDescription(answer)
+                if err != nil {
+                    log.Fatalln(err)
+                }
+
+                break;
+
+            }
+        }
+    }
+}
+
+func AddIceCandidate(rtr *router.Router, reqBody constant.RequestBody){
+    fmt.Println("***************************************************(   ADD ICE CANDIDATE    )*************************************")
+
+    var selfRoom *router.Room
+    userID := reqBody.UserID
+    roomID := reqBody.RoomID
+    ice_candidate := reqBody.ICE_Candidate.ToJSON()
+    log.Println("[ACTION] - New ICECandidate %v recieved from %s", ice_candidate, userID)
+    //ToJSON returns an ICECandidateInit which is used in AddIceCandidate
+
+    for rm, status := range rtr.Rooms {
+        if status {
+            if rm.RoomID == roomID{
+                selfRoom = rm
+                break;
+
+            }
+        }
+    }
+
+    for client, status := range selfRoom.Clients {
+        if status {
+            if client.UserID == userID{
+
+                // Sets the RemoteDescription
+                err := client.PC.AddICECandidate(ice_candidate)
                 if err != nil {
                     log.Fatalln(err)
                 }

@@ -2,8 +2,10 @@ package router
 
 import (
 	"log"
+	"sync"
 )
 type Room struct {
+	Lock sync.Mutex
 	Router *Router
 	RoomID string
 	Clients map[*Client]bool // Registered clients.

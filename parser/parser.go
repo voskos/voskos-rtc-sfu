@@ -23,5 +23,8 @@ func ParseMessage(router *router.Router, conn *websocket.Conn, msg []byte){
 
     case "CLIENT_ANSWER":
         action.RespondToClientAnswer(router, reqBody)
+
+    // case "NEW_ICE_CANDIDATE_CLIENT":
+    //     action.AddIceCandidate(router, reqBody)
     }
 }
