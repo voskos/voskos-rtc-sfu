@@ -6,15 +6,16 @@ import (
     "github.com/gorilla/websocket"
     "net/http"
     "github.com/voskos/voskos-rtc-sfu/parser"
+    "github.com/voskos/voskos-rtc-sfu/router"
 
 )
 
-func CreteWebsocketServer() {
+func CreteWebsocketServer(router *router.Router) {
 
     r := gin.Default()
 
     r.GET("/ws", func(c *gin.Context) {
-        wshandler(c.Writer, c.Request)
+        wshandler(router, c.Writer, c.Request)
     })
 
     r.Run("localhost:8080")
@@ -27,7 +28,7 @@ var wsupgrader = websocket.Upgrader{
 
 
 
-func wshandler(w http.ResponseWriter, r *http.Request) {
+func wshandler(router *router.Router, w http.ResponseWriter, r *http.Request) {
 
 	wsupgrader.CheckOrigin = func(r *http.Request) bool { return true }
     conn, err := wsupgrader.Upgrade(w, r, nil)
@@ -43,7 +44,7 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
             break
         }
 
-        parser.ParseMessage(conn, msg)
+        parser.ParseMessage(router, conn, msg)
 
     }
 }

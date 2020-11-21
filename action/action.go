@@ -17,22 +17,33 @@ const (
     rtcpPLIInterval = time.Second * 3
 )
 
-var flag int = 1
-var room *router.Room
 
 //Define actions below
-func Init(conn *websocket.Conn, reqBody constant.RequestBody){
+func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody){
 	fmt.Println("***************************************************(   INIT    )*************************************")
+
+    var myRoom *router.Room
 	userID := reqBody.UserID
 	roomID := reqBody.RoomID
 	offer := reqBody.SDP
 	log.Println("[ACTION - INIT] - Init request from ", userID , " for ", roomID)
 
-	if flag == 1{
-		flag = 0
-		room = router.NewRoom()
-		go room.Run()
-	}
+    roomExists := false
+    for rm, status := range rtr.Rooms {
+        if status {
+            if rm.RoomID == roomID{
+                myRoom = rm
+                roomExists = true
+                break;
+
+            }
+        }
+    }
+
+    if !roomExists{
+        myRoom = router.NewRoom(rtr, roomID)
+        go myRoom.Run()
+    }   
 
 	//create a peerconnection object
 	peerConnectionConfig := webrtc.Configuration{
@@ -53,7 +64,7 @@ func Init(conn *websocket.Conn, reqBody constant.RequestBody){
         log.Println("[ACTION - INIT] - SIGNAL STATE ---> ", sigState)
     })
 
-    me := router.AddClientToRoom(room, userID, conn, peerConnection)
+    me := router.AddClientToRoom(myRoom, userID, conn, peerConnection)
     me.Activate()
 
     peerConnection.OnTrack(func(remoteTrack *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
@@ -129,12 +140,25 @@ func Init(conn *websocket.Conn, reqBody constant.RequestBody){
 
 }
 
-func RespondToClientAnswer(reqBody constant.RequestBody){
+func RespondToClientAnswer(rtr *router.Router, reqBody constant.RequestBody){
 	fmt.Println("***************************************************(   RESPOND TO CLIENT ANSWER    )*************************************")
 
+    var selfRoom *router.Room
 	userID := reqBody.UserID
+    roomID := reqBody.RoomID
 	answer := reqBody.SDP
-	for client, status := range room.Clients {
+
+    for rm, status := range rtr.Rooms {
+        if status {
+            if rm.RoomID == roomID{
+                selfRoom = rm
+                break;
+
+            }
+        }
+    }
+
+	for client, status := range selfRoom.Clients {
         if status {
             if client.UserID == userID{
 
