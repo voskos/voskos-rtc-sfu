@@ -47,7 +47,7 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
 
     myRoom.Lock.Lock() 
     // Lock locks m. If the lock is already in use, the calling goroutine blocks until the mutex is available. 
-    defer myRoom.Lock.Unlock()
+    // defer myRoom.Lock.Unlock()
 
 	//create a peerconnection object
 	peerConnectionConfig := webrtc.Configuration{
@@ -97,6 +97,7 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
             me.SetAudioTrack(remoteTrack)
         }else{
             me.SetVideoTrack(remoteTrack)
+            myRoom.Lock.Unlock()
         }
     })
 
@@ -123,12 +124,12 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
     respBody.Action = "SERVER_ANSWER"
     respBody.SDP = answer
     ans, _ := json.Marshal(respBody)
-    log.Println("[ACTION - INIT] - SDP Answer Sent")
+    log.Println("[ACTION - INIT] - SDP Answer Sent to", me.UserID)
     conn.WriteMessage(websocket.TextMessage, ans)
 
     //Loop over other clients in the room and consume tracks
     log.Println("[ACTION - INIT] - ROOM LENGTH", len(me.Room.Clients))
-    for me.AudioLock || me.VideoLock {} 
+    for me.VideoLock {} 
     if len(me.Room.Clients) > 1{
     	for he, status := range me.Room.Clients {
 			if status {
@@ -148,6 +149,7 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
 		            me.Sensor <- reqBody
 				}
 			}
+            // time.Sleep(3 * time.Second) 
 		}
     }
 	
@@ -156,7 +158,7 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
 }
 
 func RespondToClientAnswer(rtr *router.Router, reqBody constant.RequestBody){
-	fmt.Println("***************************************************(   RESPOND TO CLIENT ANSWER    )*************************************")
+	fmt.Printf("***************************************************(   RESPOND TO CLIENT ANSWER  %s  )*************************************\n", reqBody.UserID)
 
     var selfRoom *router.Room
 	userID := reqBody.UserID
@@ -173,13 +175,15 @@ func RespondToClientAnswer(rtr *router.Router, reqBody constant.RequestBody){
         }
     }
 
+    fmt.Println(selfRoom.RoomID, "11111111111111111111111")
 	for client, status := range selfRoom.Clients {
         if status {
             if client.UserID == userID{
-
+                fmt.Println(client.UserID, "222222222222222222222222")
                 // Sets the RemoteDescription
                 err := client.PC.SetRemoteDescription(answer)
                 if err != nil {
+                    log.Println(err, "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLl")
                     log.Fatalln(err)
                 }
 
