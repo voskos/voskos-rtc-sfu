@@ -43,9 +43,17 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
     if !roomExists{
         myRoom = router.NewRoom(rtr, roomID)
         go myRoom.Run()
+    }
+
+    fmt.Println("WITING FOR ROOM TO BE UNLOCKED ----", userID)
+    for myRoom.IsRoomLocked() {
+
     }  
 
-    myRoom.Lock.Lock() 
+    fmt.Println("ROOM LOCK ACQUIRED BY ----", userID)
+    myRoom.LockRoom()
+
+    // myRoom.Lock.Lock() 
     // Lock locks m. If the lock is already in use, the calling goroutine blocks until the mutex is available. 
     // defer myRoom.Lock.Unlock()
 
@@ -70,6 +78,27 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
     peerConnection.OnSignalingStateChange(func(sigState webrtc.SignalingState){
         log.Println("[ACTION - INIT] - SIGNAL STATE ---> ", sigState)
     })
+
+    // peerConnection.OnNegotiationNeeded(func(){
+    //     offer, err := me.PC.CreateOffer(nil)
+    //     if err != nil {
+    //         log.Fatalln(err)
+    //     }
+
+    //     // Sets the LocalDescription, and starts our UDP listeners
+    //     err = me.PC.SetLocalDescription(offer)
+    //     if err != nil {
+    //         log.Fatalln(err)
+    //     }
+
+    //     //Send SDP Answer
+    //     respBody := constant.SDPResponse{}
+    //     respBody.Action = "SERVER_OFFER"
+    //     respBody.SDP = offer
+    //     off, _ := json.Marshal(respBody)
+    //     log.Println("[SENSOR] - SDP Offer Sent to ", me.UserID)
+    //     me.Conn.WriteMessage(websocket.TextMessage, off)
+    // })
 
     // peerConnection.OnICECandidate(func(candidate *webrtc.ICECandidate){
     //     log.Println("[ACTION - INIT] - NEW ICE CANDIDATE DISCOVERED ---> ", candidate)
@@ -97,7 +126,7 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
             me.SetAudioTrack(remoteTrack)
         }else{
             me.SetVideoTrack(remoteTrack)
-            myRoom.Lock.Unlock()
+            //myRoom.Lock.Unlock()
         }
     })
 
@@ -129,7 +158,9 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
 
     //Loop over other clients in the room and consume tracks
     log.Println("[ACTION - INIT] - ROOM LENGTH", len(me.Room.Clients))
+    fmt.Println("WAITING FOR VIDEO TRACK TO BE SAVED FOR----", me.UserID)
     for me.VideoLock {} 
+    fmt.Println("WAIT OVER FOR VIDEO TRACK SAVE OF----", me.UserID)
     if len(me.Room.Clients) > 1{
     	for he, status := range me.Room.Clients {
 			if status {
@@ -152,6 +183,8 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
             // time.Sleep(3 * time.Second) 
 		}
     }
+    
+    //myRoom.UnlockRoom()
 	
 
 

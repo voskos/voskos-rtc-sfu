@@ -2,10 +2,9 @@ package router
 
 import (
 	"log"
-	"sync"
 )
 type Room struct {
-	Lock sync.Mutex
+	Lock bool
 	Router *Router
 	RoomID string
 	Clients map[*Client]bool // Registered clients.
@@ -15,6 +14,7 @@ type Room struct {
 
 func NewRoom(router *Router, roomID string) *Room {
 	room := &Room{
+		Lock : false,
 		Router : router,
 		RoomID : roomID,
 		Register:   make(chan *Client),
@@ -37,4 +37,16 @@ func (r *Room) Run() {
 			}
 		}
 	}
+}
+
+func (r *Room) LockRoom() {
+	r.Lock = true
+}
+
+func (r *Room) UnlockRoom() {
+	r.Lock = false
+}
+
+func (r *Room) IsRoomLocked() bool{
+	return r.Lock
 }

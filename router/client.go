@@ -227,5 +227,7 @@ func (c *Client) SetAudioTrack(t *webrtc.TrackRemote){
 func (c *Client) SetVideoTrack(t *webrtc.TrackRemote){
 	c.Video = t
 	c.VideoLock = false
+	fmt.Println("UNLOCKING ROOM BY ----", c.UserID)
+	c.Room.UnlockRoom()
 	log.Printf("[CLIENT] - Video track for USER = %s saved with TRACK_ID = %s", c.UserID, c.Video.ID())
 }
