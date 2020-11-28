@@ -4,22 +4,25 @@ import (
 	"log"
 )
 type Room struct {
-	// Registered clients.
-	Clients map[*Client]bool
-
-	// Register requests from the clients.
-	Register chan *Client
-
-	// Unregister requests from clients.
-	Unregister chan *Client
+	Lock bool
+	Router *Router
+	RoomID string
+	Clients map[*Client]bool // Registered clients.
+	Register chan *Client // Register requests from the clients.
+	Unregister chan *Client // Unregister requests from clients.
 }
 
-func NewRoom() *Room {
-	return &Room{
+func NewRoom(router *Router, roomID string) *Room {
+	room := &Room{
+		Lock : false,
+		Router : router,
+		RoomID : roomID,
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Clients:    make(map[*Client]bool),
 	}
+	room.Router.Register <- room
+	return room
 }
 
 func (r *Room) Run() {
@@ -34,4 +37,16 @@ func (r *Room) Run() {
 			}
 		}
 	}
+}
+
+func (r *Room) LockRoom() {
+	r.Lock = true
+}
+
+func (r *Room) UnlockRoom() {
+	r.Lock = false
+}
+
+func (r *Room) IsRoomLocked() bool{
+	return r.Lock
 }

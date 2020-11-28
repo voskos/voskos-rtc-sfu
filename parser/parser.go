@@ -6,9 +6,10 @@ import (
     "github.com/gorilla/websocket"
     "github.com/voskos/voskos-rtc-sfu/constant"
     "github.com/voskos/voskos-rtc-sfu/action"
+    "github.com/voskos/voskos-rtc-sfu/router"
 )
 
-func ParseMessage(conn *websocket.Conn, msg []byte){
+func ParseMessage(router *router.Router, conn *websocket.Conn, msg []byte){
     reqBody := constant.RequestBody{}
     json.Unmarshal(msg, &reqBody)
 
@@ -18,9 +19,12 @@ func ParseMessage(conn *websocket.Conn, msg []byte){
     switch action_type {
 
     case "INIT":
-        action.Init(conn, reqBody)
+        action.Init(router, conn, reqBody)
 
     case "CLIENT_ANSWER":
-        action.RespondToClientAnswer(reqBody)
+        go action.RespondToClientAnswer(router, reqBody)
+
+    // case "NEW_ICE_CANDIDATE_CLIENT":
+    //     action.AddIceCandidate(router, reqBody)
     }
 }
