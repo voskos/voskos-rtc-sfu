@@ -19,7 +19,7 @@ func ParseMessage(router *router.Router, conn *websocket.Conn, msg []byte){
     switch action_type {
 
     case "INIT":
-        action.Init(router, conn, reqBody)
+        go action.Init(router, conn, reqBody)
 
     case "CLIENT_ANSWER":
         go action.RespondToClientAnswer(router, reqBody)

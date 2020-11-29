@@ -3,6 +3,7 @@ package router
 import (
 	"log"
 	"fmt"
+	"sync"
 	// "time"
 	"reflect"
 	"encoding/json"
@@ -12,6 +13,7 @@ import (
 )
 
 type Client struct {
+	PCLock sync.Mutex
 	Room *Room
 	UserID string
 	Conn *websocket.Conn
@@ -26,8 +28,8 @@ type Client struct {
 }
 
 func AddClientToRoom(room *Room, user_id string, conn *websocket.Conn, pc *webrtc.PeerConnection) *Client{
-	log.Println("[CLIENT] - Added a client to the room")
 	client := &Client{
+				PCLock : sync.Mutex{},
 				Room:  room, 
 				UserID : user_id, 
 				Conn : conn, 
@@ -38,7 +40,7 @@ func AddClientToRoom(room *Room, user_id string, conn *websocket.Conn, pc *webrt
 				AudioLock : true,
 				VideoLock : true,
 			}
-	log.Println("[CLIENT] - Registering the client to the room")
+	log.Printf("[CLIENT] - Registering %s in %s\n", user_id, room.RoomID)
 	client.Room.Register <- client
 	return client
 }
@@ -59,6 +61,8 @@ func writeRTPToTrack(outputTrack *webrtc.TrackLocalStaticRTP, track *webrtc.Trac
 
 func (self *Client) RenegotiateDueToNewClientJoin(reqBody constant.RequestBody){
 	fmt.Println("***************************************************(   RENEGOTIATE - OTHER   )*************************************")
+	self.PCLock.Lock()
+    log.Printf("%s locked its PC\n", self.UserID)
     newJoineeID := reqBody.UserID
     //Loop over other clients in the room and consume tracks
     for client, status := range self.Room.Clients {
@@ -130,6 +134,8 @@ func (self *Client) RenegotiateDueToNewClientJoin(reqBody constant.RequestBody){
 
 func (my *Client) RenegotiateDueToSelfJoin(reqBody constant.RequestBody){
 	fmt.Println("***************************************************(   RENEGOTIATE - SELF  )*************************************")
+	my.PCLock.Lock()
+    log.Printf("%s locked its PC\n", my.UserID)
     my_id := reqBody.UserID
     //Loop over other clients in the room and consume tracks
     for his, status := range my.Room.Clients {
@@ -174,7 +180,7 @@ func (my *Client) RenegotiateDueToSelfJoin(reqBody constant.RequestBody){
     } 
     //inititae renegotiation
     // Create offer
-    //time.Sleep(3 * time.Second)
+    //time.Sleep(3 * time.Second
     offer, err := my.PC.CreateOffer(nil)
     if err != nil {
         log.Fatalln(err)
@@ -197,7 +203,7 @@ func (my *Client) RenegotiateDueToSelfJoin(reqBody constant.RequestBody){
 }
 
 func (c *Client) Activate() {
-	log.Println("[CLIENT] - Client Activated")
+	log.Printf("[CLIENT] - Client %s Activated\n", c.UserID)
 	go func() {
 		for {
 			select {
@@ -211,7 +217,7 @@ func (c *Client) Activate() {
 				        go c.RenegotiateDueToNewClientJoin(reqBody)
 
 			     	case "RENEGOTIATE_SELF_CLIENT":
-				        c.RenegotiateDueToSelfJoin(reqBody)
+				        go c.RenegotiateDueToSelfJoin(reqBody)
 			    }
 			}
 		}
@@ -227,7 +233,8 @@ func (c *Client) SetAudioTrack(t *webrtc.TrackRemote){
 func (c *Client) SetVideoTrack(t *webrtc.TrackRemote){
 	c.Video = t
 	c.VideoLock = false
-	fmt.Println("UNLOCKING ROOM BY ----", c.UserID)
-	c.Room.UnlockRoom()
-	log.Printf("[CLIENT] - Video track for USER = %s saved with TRACK_ID = %s", c.UserID, c.Video.ID())
+	log.Printf("[CLIENT] - Video track for USER = %s saved with TRACK_ID = %s\n", c.UserID, c.Video.ID())
+	//c.Room.UnlockRoom()
+	c.Room.Mu.Unlock()
+	log.Printf("[CLIENT] - Room unlocked by %s\n", c.UserID)
 }
