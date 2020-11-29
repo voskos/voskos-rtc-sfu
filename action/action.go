@@ -162,29 +162,8 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
     //Loop over other clients in the room and consume tracks
     log.Println("[ACTION - INIT] - ROOM LENGTH", len(me.Room.Clients))
     log.Printf("[ACTION - INIT] - %s waiting for its video track to get saved\n", me.UserID)
-    for me.VideoLock {} 
-    if len(me.Room.Clients) > 1{
-    	for he, status := range me.Room.Clients {
-			if status {
-				if he.UserID != me.UserID{
-
-		            //Send SDP Answer
-		            reqBody := constant.RequestBody{}
-		            reqBody.Action = "RENEGOTIATE_EXIST_CLIENT"
-		            reqBody.UserID = me.UserID
-		            he.Sensor <- reqBody
-
-				}else{
-					//Send SDP Answer
-		            reqBody := constant.RequestBody{}
-		            reqBody.Action = "RENEGOTIATE_SELF_CLIENT"
-		            reqBody.UserID = me.UserID
-		            me.Sensor <- reqBody
-				}
-			}
-            // time.Sleep(3 * time.Second) 
-		}
-    }
+ 
+    
     
     //myRoom.UnlockRoom()
 	
