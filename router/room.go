@@ -2,8 +2,10 @@ package router
 
 import (
 	"log"
+	"sync"
 )
 type Room struct {
+	Mu sync.Mutex
 	Lock bool
 	Router *Router
 	RoomID string
@@ -14,7 +16,7 @@ type Room struct {
 
 func NewRoom(router *Router, roomID string) *Room {
 	room := &Room{
-		Lock : false,
+		Mu : sync.Mutex{},
 		Router : router,
 		RoomID : roomID,
 		Register:   make(chan *Client),
@@ -29,7 +31,7 @@ func (r *Room) Run() {
 	for {
 		select {
 		case client := <-r.Register:
-			log.Printf("[ROOM] - User %s registered in room", client.UserID)
+			log.Println("[ROOM] - User ID ", client.UserID , " registered in room")
 			r.Clients[client] = true
 		case client := <-r.Unregister:
 			if _, ok := r.Clients[client]; ok {
