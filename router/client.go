@@ -107,13 +107,13 @@ func (self *Client) RenegotiateDueToNewClientJoinAudio(reqBody constant.RequestB
 	// Create offer
 	offer, err := self.PC.CreateOffer(nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 
 	// Sets the LocalDescription, and starts our UDP listeners
 	err = self.PC.SetLocalDescription(offer)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 
 	//Send SDP Answer

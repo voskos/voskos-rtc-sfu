@@ -11,3 +11,4 @@ voskos Media [ Webrtc SFU ] server
  - [ ] Since new logger is being used, put proper log formatting, no need to use directives like `%s`
  - [ ] Is the `router` struct's object maintained as *Global* scope ? Make sure it does, else `Lock` won't work as expected 
  - [ ] With the current code,  `lock` is acquired in Init, but released only when the "video" track is set. What if client is not giving "Video" track, gives only "Audio" track ? 
+ - [ ] When the PC unlock happens ? Can find only when the client answer is coming for SDP - Does this means for 
