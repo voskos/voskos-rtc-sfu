@@ -1,30 +1,36 @@
 package parser
 
 import (
-    "log"
-    "encoding/json"
-    "github.com/gorilla/websocket"
-    "github.com/voskos/voskos-rtc-sfu/constant"
-    "github.com/voskos/voskos-rtc-sfu/action"
-    "github.com/voskos/voskos-rtc-sfu/router"
+	"encoding/json"
+	"github.com/gorilla/websocket"
+	"github.com/voskos/voskos-rtc-sfu/action"
+	"github.com/voskos/voskos-rtc-sfu/constant"
+	"github.com/voskos/voskos-rtc-sfu/router"
+	log "github.com/sirupsen/logrus"
 )
 
-func ParseMessage(router *router.Router, conn *websocket.Conn, msg []byte){
-    reqBody := constant.RequestBody{}
-    json.Unmarshal(msg, &reqBody)
+func ParseMessage(router *router.Router, conn *websocket.Conn, msg []byte) {
 
-    action_type := reqBody.Action
-    log.Println("[PARSER] - Message recieved with action : ", action_type)
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetReportCaller(true)
+	
+	reqBody := constant.RequestBody{}
+	json.Unmarshal(msg, &reqBody)
 
-    switch action_type {
+	action_type := reqBody.Action
+	log.Info("Message recieved with action : ", action_type)
 
-    case "INIT":
-        go action.Init(router, conn, reqBody)
+	switch action_type {
 
-    case "CLIENT_ANSWER":
-        go action.RespondToClientAnswer(router, reqBody)
+	case "INIT":
+		go action.Init(router, conn, reqBody)
 
-    // case "NEW_ICE_CANDIDATE_CLIENT":
-    //     action.AddIceCandidate(router, reqBody)
-    }
+	case "CLIENT_ANSWER":
+		go action.RespondToClientAnswer(router, reqBody)
+
+		// case "NEW_ICE_CANDIDATE_CLIENT":
+		//     action.AddIceCandidate(router, reqBody)
+	}
 }

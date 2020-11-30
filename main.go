@@ -1,14 +1,22 @@
 package main
 
 import (
-	"log"
-    "github.com/voskos/voskos-rtc-sfu/server"
-    "github.com/voskos/voskos-rtc-sfu/router"
+	"github.com/voskos/voskos-rtc-sfu/router"
+	"github.com/voskos/voskos-rtc-sfu/server"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
+
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetReportCaller(true)
+
+	log.Info("Namaskar, Voskos! ", "Media server starting ...")
+
 	router := router.NewRouter()
 	go router.Run()
-	log.Println("[MAIN] - Server Initiated")
-    server.CreteWebsocketServer(router)
+	
+	server.CreteWebsocketServer(router)
 }

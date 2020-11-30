@@ -1,7 +1,7 @@
 package server
 
 import (
-    "log"
+    log "github.com/sirupsen/logrus"
     "github.com/gin-gonic/gin"
     "github.com/gorilla/websocket"
     "net/http"
@@ -11,6 +11,13 @@ import (
 )
 
 func CreteWebsocketServer(router *router.Router) {
+
+    log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetReportCaller(true)
+
+	gin.SetMode(gin.ReleaseMode)
 
     r := gin.Default()
 
@@ -30,10 +37,15 @@ var wsupgrader = websocket.Upgrader{
 
 func wshandler(router *router.Router, w http.ResponseWriter, r *http.Request) {
 
+    log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetReportCaller(true)
+
 	wsupgrader.CheckOrigin = func(r *http.Request) bool { return true }
     conn, err := wsupgrader.Upgrade(w, r, nil)
     if err != nil {
-        log.Printf("[ERROR] : Failed to set websocket upgrade: %+v", err)
+        log.Error("Failed to set websocket upgrade: %+v", err)
         return
     }
 
@@ -44,6 +56,7 @@ func wshandler(router *router.Router, w http.ResponseWriter, r *http.Request) {
             break
         }
 
+		log.Info("Web Socket received new message, sent for Parser")
         parser.ParseMessage(router, conn, msg)
 
     }
