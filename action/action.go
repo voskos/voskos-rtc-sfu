@@ -7,6 +7,7 @@ import (
 	"github.com/pion/webrtc/v3"
 	"github.com/voskos/voskos-rtc-sfu/constant"
 	"github.com/voskos/voskos-rtc-sfu/router"
+    "github.com/voskos/voskos-rtc-sfu/util"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
@@ -15,6 +16,8 @@ const (
 	// PLI (Pictire Loss Indication)
 	rtcpPLIInterval = time.Second * 3
 )
+
+
 
 //Define actions below
 func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody) {
@@ -77,7 +80,9 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
 	// Create a new RTCPeerConnection
 	peerConnection, err := webrtc.NewPeerConnection(peerConnectionConfig)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+        util.SendErrMessage("Failed to create peer connection", conn)
+
 	}
 
 	me := router.AddClientToRoom(myRoom, userID, conn, peerConnection)
@@ -90,13 +95,13 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
 	// peerConnection.OnNegotiationNeeded(func(){
 	//     offer, err := me.PC.CreateOffer(nil)
 	//     if err != nil {
-	//         log.Fatalln(err)
+	//         log.Println(err)
 	//     }
 
 	//     // Sets the LocalDescription, and starts our UDP listeners
 	//     err = me.PC.SetLocalDescription(offer)
 	//     if err != nil {
-	//         log.Fatalln(err)
+	//         log.Println(err)
 	//     }
 
 	//     //Send SDP Answer
@@ -140,19 +145,22 @@ func Init(rtr *router.Router, conn *websocket.Conn, reqBody constant.RequestBody
 	// Set the remote SessionDescription
 	err = peerConnection.SetRemoteDescription(offer)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+        util.SendErrMessage("Failed to save remote description", conn)
 	}
 
 	// Create answer
 	answer, err := peerConnection.CreateAnswer(nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+        util.SendErrMessage("Failed to create answer", conn)
 	}
 
 	// Sets the LocalDescription, and starts our UDP listeners
 	err = peerConnection.SetLocalDescription(answer)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+        util.SendErrMessage("Failed to set local description", conn)
 	}
 
 	//Send SDP Answer
@@ -203,7 +211,8 @@ func RespondToClientAnswer(rtr *router.Router, reqBody constant.RequestBody) {
 				err := client.PC.SetRemoteDescription(answer)
 				log.Info("SDP Answer saved for %s\n", userID)
 				if err != nil {
-					log.Fatalln(err)
+					log.Println(err)
+                    util.SendErrMessage("Failed to set remote answer", client.Conn)
 				}
 				client.PCLock.Unlock()
 				log.Info("%s unlocked its PC\n", userID)
@@ -247,7 +256,8 @@ func AddIceCandidate(rtr *router.Router, reqBody constant.RequestBody) {
 				// Sets the RemoteDescription
 				err := client.PC.AddICECandidate(ice_candidate)
 				if err != nil {
-					log.Fatal(err)
+					log.Println(err)
+                    util.SendErrMessage("Failed to add ICE candidate", client.Conn)
 				}
 
 				break

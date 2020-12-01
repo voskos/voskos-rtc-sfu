@@ -9,6 +9,7 @@ type RequestBody struct {
 	UserID        string                    `json:"user_id"`
 	RoomID        string                    `json:"room_id"`
 	Body          map[string]string         `json:"body"`
+	Message        string                    `json:"message"`
 	SDP           webrtc.SessionDescription `json:"sdp"`
 	ICE_Candidate *webrtc.ICECandidate      `json:"ice_candidate"`
 }

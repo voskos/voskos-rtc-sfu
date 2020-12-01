@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
 	"github.com/voskos/voskos-rtc-sfu/constant"
+	"github.com/voskos/voskos-rtc-sfu/util"
 	"reflect"
 )
 
@@ -107,13 +108,15 @@ func (self *Client) RenegotiateDueToNewClientJoinAudio(reqBody constant.RequestB
 	// Create offer
 	offer, err := self.PC.CreateOffer(nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		util.SendErrMessage("Failed to create offer", self.Conn)
 	}
 
 	// Sets the LocalDescription, and starts our UDP listeners
 	err = self.PC.SetLocalDescription(offer)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		util.SendErrMessage("Failed to set local description", self.Conn)
 	}
 
 	//Send SDP Answer
@@ -170,13 +173,15 @@ func (self *Client) RenegotiateDueToNewClientJoinVideo(reqBody constant.RequestB
 	// Create offer
 	offer, err := self.PC.CreateOffer(nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		util.SendErrMessage("Failed to creat offer", self.Conn)
 	}
 
 	// Sets the LocalDescription, and starts our UDP listeners
 	err = self.PC.SetLocalDescription(offer)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		util.SendErrMessage("Failed to set local description", self.Conn)
 	}
 
 	//Send SDP Answer
@@ -229,13 +234,15 @@ func (my *Client) RenegotiateDueToSelfJoinAudio(reqBody constant.RequestBody) {
 	//time.Sleep(3 * time.Second
 	offer, err := my.PC.CreateOffer(nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		util.SendErrMessage("Failed to create offer", my.Conn)
 	}
 
 	// Sets the LocalDescription, and starts our UDP listeners
 	err = my.PC.SetLocalDescription(offer)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		util.SendErrMessage("Failed to set local description", my.Conn)
 	}
 
 	//Send SDP Answer
@@ -291,13 +298,15 @@ func (my *Client) RenegotiateDueToSelfJoinVideo(reqBody constant.RequestBody) {
 	//time.Sleep(3 * time.Second
 	offer, err := my.PC.CreateOffer(nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		util.SendErrMessage("Failed to create offer", my.Conn)
 	}
 
 	// Sets the LocalDescription, and starts our UDP listeners
 	err = my.PC.SetLocalDescription(offer)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		util.SendErrMessage("Failed to set local description", my.Conn)
 	}
 
 	//Send SDP Answer
