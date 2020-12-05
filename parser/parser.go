@@ -30,8 +30,8 @@ func ParseMessage(router *router.Router, conn *websocket.Conn, msg []byte) {
 	case "CLIENT_ANSWER":
 		go action.RespondToClientAnswer(router, reqBody)
 
-	case "STOP_SCREEN_SHARE":
-		go action.StopScreenShare(router, reqBody)
+	// case "STOP_SCREEN_SHARE":
+	// 	go action.StopScreenShare(router, reqBody)
 
 	case "RENEGOTIATE_SCREEN":
 		go action.RenegotiateScreenShare(router, reqBody)

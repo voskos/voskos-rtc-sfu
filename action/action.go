@@ -348,9 +348,9 @@ func RenegotiateScreenShare(rtr *router.Router, reqBody constant.RequestBody) {
         if status {
             if client.UserID == userID {
                 // Sets the RemoteDescription
-                client.SaveStreamIdToDeviceTypeInfo(streamId, deviceType)
-
                 client.PCLock.Lock()
+                client.SaveStreamIdToDeviceTypeInfo(streamId, deviceType)
+                
                 err := client.PC.SetRemoteDescription(answer)
                 log.Info("SDP Answer saved for %s\n", userID)
                 if err != nil {
