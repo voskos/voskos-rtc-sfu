@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<title></title>
+	<script type="text/javascript">
+	var pc = null;
+	var connection = null;
+	var audioTrack = null;
+	var videoTrack = null;
+	var displayStreamId = null;
+	var displayMediaSender = null;
+	var screenVideo = null
+	function createPeerConnection() {
+	    var config = {
+	        sdpSemantics: 'unified-plan'
+	    };
+
+	    //config.iceServers = [{urls: ['stun:stun.l.google.com:19302']}];
+
+	    pc = new RTCPeerConnection(config);
+
+	    pc.addEventListener('icegatheringstatechange', function() {
+	        console.log(pc.iceGatheringState)
+	    }, false);
+
+	    pc.addEventListener('iceconnectionstatechange', function() {
+	        console.log( pc.iceConnectionState)
+	    }, false);
+
+	    pc.addEventListener('signalingstatechange', function() {
+	        console.log(pc.signalingState)
+	    }, false);
+
+	    // pc.addEventListener('icecandidate', async function({candidate}) {
+	    //     console.log("candidate ", candidate)
+	    //     await connection.send(JSON.stringify({'action' : 'NEW_ICE_CANDIDATE_CLIENT','user_id' : $("#uname").val(), 'ice_candidate' : candidate, 'room_id' : $("#room_id").val()}))
+	    // }, false);
+
+	    // connect audio / video
+	    pc.ontrack = ({transceiver, streams: [stream]}) => {
+		    console.log(stream)
+
+	        if (transceiver.receiver.track.kind == 'video'){
+	          if(stream.id.split("-")[1] === "webcamVideo"){
+
+	            let video = document.createElement('video');
+	            video.autoplay = true;
+				video.srcObject = stream
+				video.width = '600'
+				video.load()
+				
+				$("#videos").append(video)
+
+	          }else if(stream.id.split("-")[1] === "displayVideo"){
+
+	            let video = document.createElement('video');
+	            video.autoplay = true;
+				video.srcObject = stream
+				video.width = '600'
+				video.load()
+				
+				$("#videos").append(video)
+	          }
+	          
+	        }
+	        else{
+	          var audio = document.createElement('audio');
+				audio.srcObject = stream
+				audio.autoplay = true;
+				audio.load()
+				$("#audios").append(audio)
+
+	        }
+
+	          
+	    };
+
+	    return pc;
+	}
+
+function negotiate(deviceType, streamId) {
+    console.log("OWNERRRRRRRRRRRRRRRRR")
+    console.log(pc.getTransceivers())
+    return pc.createOffer().then(function(offer) {
+        return pc.setLocalDescription(offer);
+    }).then(function() {
+        // wait for ICE gathering to complete
+        return new Promise(function(resolve) {
+            if (pc.iceGatheringState === 'complete') {
+                resolve();
+            } else {
+                function checkState() {
+                    if (pc.iceGatheringState === 'complete') {
+                        pc.removeEventListener('icegatheringstatechange', checkState);
+                        resolve();
+                    }
+                }
+                pc.addEventListener('icegatheringstatechange', checkState);
+            }
+        });
+    }).then(async function() {
+      //await connection.send(JSON.stringify({'action' : 'SAVE_STREAM_ID_DEVICE_TYPE_INFO','user_id' : $("#uname").val(), 'room_id' : $("#room_id").val(), 'body' : {'stream_id' : streamId, 'device_type' : deviceType}}))
+
+        if(deviceType === "webcam"){
+          connection.send(JSON.stringify({'action' : 'INIT','user_id' : $("#uname").val(), 'sdp' : pc.localDescription, 'room_id' : $("#room_id").val(), 'body' : {'stream_id' : streamId, 'device_type' : deviceType}}))
+        }else if(deviceType === "display"){
+          connection.send(JSON.stringify({'action' : 'RENEGOTIATE_SCREEN','user_id' : $("#uname").val(), 'sdp' : pc.localDescription, 'room_id' : $("#room_id").val(), 'body' : {'stream_id' : streamId, 'device_type' : deviceType}}))
+        }
+        // else if(deviceType === "display-stop"){
+        //   connection.send(JSON.stringify({'action' : 'STOP_SCREEN_SHARE','user_id' : $("#uname").val(), 'sdp' : pc.localDescription, 'room_id' : $("#room_id").val(), 'body' : {'stream_id' : streamId, 'device_type' : deviceType}}))
+        // }
+        
+        //console.log("SDP ANSWER FROM SERVER---> ", answer)
+    })
+}
+
+function toggleVideo(){
+  videoTrack.enabled = !videoTrack.enabled
+}
+
+function toggleAudio(){
+  audioTrack.enabled = !audioTrack.enabled
+}
+
+function startCall() {
+  pc = createPeerConnection();
+  localStorage.uid = $("#uname").val()
+
+  var constraints = {
+        audio: true,
+        video: true
+  };
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+      console.log("Camera strem id", stream.id)
+      stream.getTracks().forEach(function(track) {
+          
+          if(track.kind == "video"){
+            videoTrack = track
+            console.log("Track id video :-", track.id)
+            pc.addTrack(track, stream);
+            //video_sender.replaceTrack(track)
+          }
+          else{
+            audioTrack = track
+            console.log("Track id audio :-", track.id)
+            pc.addTrack(track, stream);
+            //audio_sender.replaceTrack(track)
+          }
+          
+      });
+
+      return negotiate("webcam", stream.id);
+
+  }, function(err) {
+      alert('Could not acquire media: ' + err);
+  });
+} 
+
+function shareScreen(){
+  if(displayMediaSender !== null){
+    displayMediaSender.replaceTrack(screenVideo)
+  }else{
+    if(pc === null){
+     pc = createPeerConnection();
+    }
+    var constraints = {
+          audio: true,
+          video: true
+    };
+    navigator.mediaDevices.getDisplayMedia(constraints).then(function(stream) {
+        stream.getTracks().forEach(function(track) {
+            screenVideo = track;
+            displayMediaSender = pc.addTrack(track, stream);
+            
+        });
+        displayStreamId = stream.id
+        return negotiate("display", stream.id);
+
+    }, function(err) {
+        alert('Could not acquire screen: ' + err);
+    });
+  }
+  
+}
+
+function stopScreenShare(){
+  //pc.removeTrack(displayMediaSender)
+  displayMediaSender.replaceTrack(null);
+  //return negotiate("display-stop", displayStreamId);
+}
+
+
+$(document).ready(function(){
+
+  localStorage.flag = 1
+  if (window["WebSocket"]) {
+	  connection = new WebSocket('ws://localhost:8080/ws');
+	 
+	    // When the connection is open, send some data to the server
+	  connection.onopen = function () {
+	    console.log("Websocket connection created")
+	  };
+
+	  // Log errors
+	  connection.onerror = function (error) {
+	    console.log('WebSocket Error ', error);
+	  };
+
+	  // Log messages from the server
+	  connection.onmessage = async function (e) {
+	    let resp = JSON.parse(e.data)
+	    if(resp.action === "SERVER_ANSWER"){
+	      console.log(resp)
+	      await pc.setRemoteDescription(resp.sdp)
+	    }
+	    else if(resp.action === "SERVER_OFFER"){
+	      await pc.setRemoteDescription(resp.sdp)
+	      let ans = await pc.createAnswer()
+	      await pc.setLocalDescription(ans)
+	      connection.send(JSON.stringify({'action' : 'CLIENT_ANSWER','user_id' : $("#uname").val(), 'sdp' : pc.localDescription, 'room_id' : $("#room_id").val()}))
+	    }
+	    else if(resp.action === "STOP_SCREEN_SHARING"){
+	      console.log("Remote User ID ", resp.user_id)
+	      document.getElementById('screen').srcObject = null
+
+	    }
+	    // else if(resp.action === "NEW_ICE_CANDIDATE_SERVER"){
+	    //   if(pc.canTrickleIceCandidates){
+	    //     await pc.addIceCandidate(resp.ice_candidate);
+	    //   }
+	      
+	    // }
+	  };
+  }
+  else{
+    console.log("")
+  }
+}) 
+
+  
+
+	</script>
+</head>
+<body>
+	
+	<div className="App">
+  
+     <div id = "callPage"> 
+        <div id="videos">
+        	
+        </div>
+        <div id="audios">
+        	
+        </div>
+        <div> 
+           <div> 
+              <input id = "uname" type = "text" placeholder = "username to call" /> 
+              <input id = "room_id" type = "text" placeholder = "Room ID" /> 
+              
+              <button id = "callBtn"  type="button" onclick="startCall()">Call</button> 
+              <button id = "hangUpBtn" type="button"  onclick="toggleVideo()" class = "btn-danger btn">Toggle Video</button> 
+              <button id = "hangUpBtn" type="button"  onclick="toggleAudio()" class = "btn-danger btn">Toggle Audio</button> 
+
+              <button id = "callBtn" type="button"  onclick="shareScreen()">Share Screen</button> 
+              //<button id = "callBtn" type="button"  onclick="stopScreenShare()">Stop Screen</button> 
+           </div> 
+        </div> 
+      
+     </div>
+    </div>
+</body>
+</html>
