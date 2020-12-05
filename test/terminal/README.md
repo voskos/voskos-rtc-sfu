@@ -3,7 +3,7 @@
 Testing procedure :
 
 
-1. `git clone https://github.com/voskos/voskos-testing-client/`
+1. `git clone https://github.com/voskos/voskos-rtc-sfu/`
 4. `go run main.go`
 5. cd into /test/terminal
 6. `sh runner.sh`
