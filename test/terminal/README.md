@@ -4,8 +4,8 @@ Testing procedure :
 
 
 1. `git clone https://github.com/voskos/voskos-rtc-sfu/`
-4. `go run main.go`
-5. cd into /test/terminal
-6. `sh runner.sh`
+2. `go run main.go`
+3. `cd /test/terminal`
+4. `sh runner.sh`
 
 **In order to change number of rooms and participants per room, edit the correspoding values in runner.sh
