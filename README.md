@@ -26,6 +26,7 @@ Please note that the project is in development stage, we need all of your suppor
 - [ ] Stress testing on multi-session::multi-user scenarios to observer the behaviour of mutex locks for re-negotiations
 - [ ] Load testing to find the optimal hardware requirements
 - [ ] Implementation of server stats endpoints 
+- [ ] Integrate CI CD pipelines for build, test and release management
 
 --- 
 
